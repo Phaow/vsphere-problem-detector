@@ -112,17 +112,16 @@ func CheckStorageClasses(ctx *CheckContext) error {
 		for k, v := range sc.Parameters {
 			switch strings.ToLower(k) {
 			case dsParameter:
-				// Its like we can check multiple datacenters, but we assumed here only 1 value in the field.
-				if ctx.VMConfig.LegacyConfig != nil {
-					// Legacy will only have 1 vCenter.  Looping just to get first and only vCenter.
-					for _, vCenter := range ctx.VCenters {
-						if err := checkDataStore(ctx, vCenter, v, ctx.VMConfig.LegacyConfig.Workspace.Datacenter, dsTypes); err != nil {
+				for _, fd := range ctx.PlatformSpec.FailureDomains {
+					vCenter := ctx.VCenters[fd.Server]
+					if vCenter == nil {
+						klog.Warning("CheckStorageClasses: unable to check datastore due to get empty vcenter info from failureDomains.")
+					} else {
+						if err := checkDataStore(ctx, vCenter, v, fd.Topology.Datacenter, dsTypes); err != nil {
 							klog.V(2).Infof("CheckStorageClasses: %s: %s", sc.Name, err)
 							errs = append(errs, fmt.Errorf("StorageClass %s: %s", sc.Name, err))
 						}
 					}
-				} else {
-					klog.Warning("CheckStorageClasses: unable to check datastore due to legacy config not in use.")
 				}
 			case dataStoreURL:
 				if err := checkDataStoreWithURL(ctx, v, dsTypes); err != nil {
